@@ -8,6 +8,18 @@ order: 6
 
 `okaeshi-control` は、AI Agent が同じ Playwright BrowserContext を複数の CLI 呼び出しで操作するためのローカル専用ツールです。Phase 2 では、Phase 1 の操作に加えて検証環境、console、network、画面の安定状態を観測できます。
 
+## Agent Verification Skill
+
+Okaeshi のローカル Web UI や操作フローを AI Agent が検証する場合は、`.agents/skills/okaeshi-verification/SKILL.md` に従います。Skill は検証場面に応じてどの観察・操作・Evidence が必要かを判断し、CLI はブラウザ操作の実装を担当します。
+
+```text
+Skill = When / What
+okaeshi-control = How
+Okaeshi = Application
+```
+
+Skill は Playwright API、locator、CSS selector を操作手順として持ちません。利用するのは現行 CLI が公開している `doctor`、`new-session`、`goto`、`snapshot`、`type`、native `select`、`click`、`wait-settle`、`console`、`network-summary`、`screenshot` だけです。`info`、trace、custom combobox などの未対応機能は後続 Phase の対象です。
+
 ## 起動
 
 初回だけ Chromium をインストールします。
@@ -43,6 +55,7 @@ pnpm okaeshi-control doctor
 ```sh
 pnpm okaeshi-control new-session
 pnpm okaeshi-control goto /home
+pnpm okaeshi-control snapshot
 pnpm okaeshi-control click --role button --name "立て替えたお金を記録する"
 pnpm okaeshi-control snapshot
 pnpm okaeshi-control type --label 金額 --value 1200
