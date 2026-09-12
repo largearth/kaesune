@@ -3,6 +3,7 @@ import { RequireSession } from "./components/RequireSession";
 import { AllocationPage } from "./pages/AllocationPage";
 import { GroupPage } from "./pages/GroupPage";
 import { HomePage } from "./pages/HomePage";
+import { InvoicesPage } from "./pages/InvoicesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MypagePage } from "./pages/MypagePage";
 import { RecordsPage } from "./pages/RecordsPage";
@@ -21,6 +22,7 @@ export function AppRouter() {
           path="/records/:withdrawalId/claims/new"
           element={<AllocationPage />}
         />
+        <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/mypage" element={<MypagePage />} />
         <Route path="/wallets" element={<WalletsPage />} />
         <Route path="/group" element={<GroupPage />} />
