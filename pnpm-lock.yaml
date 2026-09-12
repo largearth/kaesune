@@ -181,6 +181,43 @@ importers:
         specifier: ^8.2.0
         version: 8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)
 
+  tools/agent-control:
+    dependencies:
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      playwright:
+        specifier: ^1.62.1
+        version: 1.62.1
+    devDependencies:
+      "@eslint/js":
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@10.8.1(jiti@2.7.0))
+      "@types/node":
+        specifier: ^24.13.3
+        version: 24.13.3
+      eslint:
+        specifier: ^10.8.0
+        version: 10.8.1(jiti@2.7.0)
+      globals:
+        specifier: ^17.7.0
+        version: 17.11.0
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.65.0
+        version: 8.66.0(eslint@10.8.1(jiti@2.7.0))(typescript@6.0.3)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+
 packages:
   "@asteasolutions/zod-to-openapi@9.1.0":
     resolution:
@@ -3891,18 +3928,18 @@ packages:
       }
     engines: { node: ">=20" }
 
-  fsevents@2.3.3:
-    resolution:
-      {
-        integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==,
-      }
-    engines: { node: ^8.16.0 || ^10.6.0 || >=11.0.0 }
-    os: [darwin]
-
   fsevents@2.3.2:
     resolution:
       {
         integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==,
+      }
+    engines: { node: ^8.16.0 || ^10.6.0 || >=11.0.0 }
+    os: [darwin]
+
+  fsevents@2.3.3:
+    resolution:
+      {
+        integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==,
       }
     engines: { node: ^8.16.0 || ^10.6.0 || >=11.0.0 }
     os: [darwin]
@@ -8258,10 +8295,10 @@ snapshots:
     dependencies:
       tiny-inflate: 1.0.3
 
-  fsevents@2.3.3:
+  fsevents@2.3.2:
     optional: true
 
-  fsevents@2.3.2:
+  fsevents@2.3.3:
     optional: true
 
   gensync@1.0.0-beta.2: {}

@@ -35,7 +35,8 @@ const verificationUser = {
   email: (
     process.env.VERIFY_USER_EMAIL ?? "verification@example.test"
   ).toLowerCase(),
-  password: "verify-payment-create-password",
+  password:
+    process.env.VERIFY_USER_PASSWORD ?? "verify-records-delete-password",
 };
 const verificationGroup = {
   id: "de086a07-0c9c-4a2a-bf75-029c7d0df01d",

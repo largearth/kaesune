@@ -15,3 +15,4 @@ order: 0
 - [ローカル検証手順](/development/local-verification)
 - [CI 品質ゲート](/development/ci-quality-gate)
 - [テスト運用](/development/test-operations)
+- [Okaeshi Agent Control](/development/agent-control)

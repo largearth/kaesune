@@ -60,6 +60,42 @@ export type CreateWithdrawalInput = {
   note?: string | null;
 };
 
+export type AllocationInput = {
+  memberId: string;
+  amount: string;
+};
+
+export type Claim = {
+  id: string;
+  groupId: string;
+  debtorMemberId: string;
+  walletId: string;
+  amount: string;
+  status: "unsettled" | "settled";
+  settledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClaimListItem = {
+  id: string;
+  groupId: string;
+  debtorMemberId: string;
+  debtorMemberName: string;
+  walletId: string;
+  walletName: string;
+  amount: string;
+  status: "unsettled" | "settled";
+  settledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: {
+    withdrawalId: string;
+    purpose: string;
+    amount: string;
+  }[];
+};
+
 type ErrorResponse = {
   message?: string;
 };
@@ -106,6 +142,27 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     throw new ApiRequestError(
       response.status,
       responseBody?.message ?? "データの作成に失敗しました。",
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${apiOrigin}${path}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const responseBody = (await response
+      .json()
+      .catch(() => null)) as ErrorResponse | null;
+    throw new ApiRequestError(
+      response.status,
+      responseBody?.message ?? "データの更新に失敗しました。",
     );
   }
 
@@ -171,4 +228,32 @@ export function createGroupWithdrawal(
 
 export function deleteGroupWithdrawal(groupId: string, withdrawalId: string) {
   return del(`/api/groups/${groupId}/withdrawals/${withdrawalId}`);
+}
+
+export function replaceGroupWithdrawalAllocations(
+  groupId: string,
+  withdrawalId: string,
+  allocations: AllocationInput[],
+) {
+  return put<Withdrawal>(
+    `/api/groups/${groupId}/withdrawals/${withdrawalId}/allocations`,
+    { allocations },
+  );
+}
+
+export function createGroupWithdrawalClaims(
+  groupId: string,
+  withdrawalId: string,
+) {
+  return post<{ claims: Claim[] }>(
+    `/api/groups/${groupId}/withdrawals/${withdrawalId}/claims`,
+    {},
+  );
+}
+
+export async function getGroupClaims(groupId: string) {
+  const response = await get<{ claims: ClaimListItem[] }>(
+    `/api/groups/${groupId}/claims`,
+  );
+  return response.claims;
 }

@@ -8,7 +8,13 @@
     "typecheck": "turbo typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "okaeshi-control": "pnpm --filter @okaeshi/agent-control control",
+    "okaeshi-control:daemon": "pnpm --filter @okaeshi/agent-control daemon",
     "verify:install-browser": "playwright install chromium",
+    "verify:agent-control-payment-create": "playwright test verification/agent-control-payment-create.spec.ts",
+    "verify:agent-control-phase2": "playwright test verification/agent-control-phase2.spec.ts",
+    "verify:invoices-list": "pnpm --filter backend verify:seed-invoices-list && playwright test verification/invoices-list.spec.ts",
+    "verify:claim-create": "pnpm --filter backend verify:seed-claim-create && playwright test verification/claim-create.spec.ts",
     "verify:records-delete": "pnpm --filter backend verify:seed-records-delete && playwright test verification/records-delete.spec.ts",
     "verify:payment-create": "pnpm --filter backend verify:seed-payment-create && playwright test verification/payment-create.spec.ts",
     "verify:wallet-delete": "pnpm --filter backend verify:seed-wallet-delete && playwright test verification/wallet-delete.spec.ts",
@@ -35,6 +41,9 @@
     ],
     "apps/docs/**/*.{js,jsx,ts,tsx,mjs,cjs,astro}": [
       "eslint --config apps/docs/eslint.config.mjs --max-warnings=0 --no-warn-ignored"
+    ],
+    "tools/agent-control/**/*.{js,mjs,ts}": [
+      "eslint --config tools/agent-control/eslint.config.mjs --max-warnings=0"
     ]
   },
   "packageManager": "pnpm@9.7.0"
