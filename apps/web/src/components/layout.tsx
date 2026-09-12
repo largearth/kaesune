@@ -7,7 +7,7 @@ export function BottomNav({ active }: { active: NavigationKey }) {
   const links: [string, string, IconName, NavigationKey][] = [
     ["/home", "ホーム", "home", "home"],
     ["/records", "レコード", "wallet", "records"],
-    ["/mypage", "マイページ", "user", "mypage"],
+    ["/invoices", "請求一覧", "receipt", "invoices"],
   ];
   return (
     <nav
