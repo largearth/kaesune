@@ -25,6 +25,9 @@ const uuid = z.string().uuid();
 const amount = z
   .string()
   .regex(/^[1-9][0-9]*$/, "正の円整数を指定してください。");
+const allocationAmount = z
+  .string()
+  .regex(/^(0|[1-9][0-9]*)$/, "0以上の円整数を指定してください。");
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const errorSchema = z
   .object({
@@ -71,7 +74,7 @@ const walletSchema = z
   })
   .openapi("Wallet");
 const allocationSchema = z
-  .object({ memberId: uuid, amount })
+  .object({ memberId: uuid, amount: allocationAmount })
   .openapi("Allocation");
 const withdrawalSchema = z
   .object({
@@ -1008,7 +1011,9 @@ api.openapi(
       );
     const items = withdrawal.allocations.filter(
       (item) =>
-        wallet.ownerType === "shared" || item.memberId !== wallet.ownerMemberId,
+        BigInt(item.amount) > 0n &&
+        (wallet.ownerType === "shared" ||
+          item.memberId !== wallet.ownerMemberId),
     );
     if (items.length === 0)
       throw new ApiError(
