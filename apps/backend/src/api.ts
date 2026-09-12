@@ -101,6 +101,19 @@ const claimSchema = z
     updatedAt: z.string().datetime(),
   })
   .openapi("Claim");
+const claimListItemSchema = claimSchema
+  .extend({
+    debtorMemberName: z.string(),
+    walletName: z.string(),
+    items: z.array(
+      z.object({
+        withdrawalId: uuid,
+        purpose: z.string(),
+        amount,
+      }),
+    ),
+  })
+  .openapi("ClaimListItem");
 
 const toAmount = (value: bigint) => value.toString();
 const toIso = (value: Date) => value.toISOString();
@@ -838,7 +851,7 @@ api.openapi(
       200: {
         content: {
           "application/json": {
-            schema: z.object({ claims: z.array(claimSchema) }),
+            schema: z.object({ claims: z.array(claimListItemSchema) }),
           },
         },
         description: "Claims",
@@ -852,15 +865,77 @@ api.openapi(
     const db = c.get("db");
     await requireMember(db, groupId, c.req.raw, c.env);
     const rows = await db
-      .select()
+      .select({
+        claim: claims,
+        debtorMemberName: users.name,
+        walletName: wallets.name,
+      })
       .from(claims)
+      .innerJoin(
+        groupMembers,
+        and(
+          eq(groupMembers.id, claims.debtorMemberId),
+          eq(groupMembers.groupId, groupId),
+        ),
+      )
+      .innerJoin(users, eq(users.id, groupMembers.userId))
+      .innerJoin(
+        wallets,
+        and(eq(wallets.id, claims.walletId), eq(wallets.groupId, groupId)),
+      )
       .where(
         status
           ? and(eq(claims.groupId, groupId), eq(claims.status, status))
           : eq(claims.groupId, groupId),
       )
       .orderBy(desc(claims.createdAt));
-    return c.json(noStore(c, { claims: rows.map(serializeClaim) }));
+    const claimIds = rows.map(({ claim }) => claim.id);
+    const itemRows =
+      claimIds.length === 0
+        ? []
+        : await db
+            .select({
+              claimId: claimItems.claimId,
+              withdrawalId: withdrawals.id,
+              purpose: withdrawals.purpose,
+              amount: claimItems.amount,
+            })
+            .from(claimItems)
+            .innerJoin(allocations, eq(allocations.id, claimItems.allocationId))
+            .innerJoin(
+              withdrawals,
+              eq(withdrawals.id, allocations.withdrawalId),
+            )
+            .where(
+              and(
+                inArray(claimItems.claimId, claimIds),
+                eq(withdrawals.groupId, groupId),
+              ),
+            )
+            .orderBy(asc(claimItems.createdAt), asc(claimItems.id));
+    const itemsByClaimId = new Map<
+      string,
+      { withdrawalId: string; purpose: string; amount: string }[]
+    >();
+    for (const item of itemRows) {
+      const items = itemsByClaimId.get(item.claimId) ?? [];
+      items.push({
+        withdrawalId: item.withdrawalId,
+        purpose: item.purpose,
+        amount: toAmount(item.amount),
+      });
+      itemsByClaimId.set(item.claimId, items);
+    }
+    return c.json(
+      noStore(c, {
+        claims: rows.map(({ claim, debtorMemberName, walletName }) => ({
+          ...serializeClaim(claim),
+          debtorMemberName,
+          walletName,
+          items: itemsByClaimId.get(claim.id) ?? [],
+        })),
+      }),
+    );
   },
 );
 
