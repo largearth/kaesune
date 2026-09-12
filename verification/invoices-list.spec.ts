@@ -52,6 +52,22 @@ test("保存済みの請求を一覧表示し、状態で絞り込める", async
   await expect(page.getByText("返済先: E2E 共有口座").first()).toBeVisible();
   await expect(page.getByText("¥4,250")).toBeVisible();
   await expect(page.getByText("¥1,500")).toBeVisible();
+  await page.getByRole("link", { name: /E2E 週の食料品/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "E2E 請求対象さんへの請求" }),
+  ).toBeVisible();
+  await expect(page.getByText("請求の内訳")).toBeVisible();
+  await expect(page.getByText("E2E 週の食料品")).toBeVisible();
+  await expect(page.getByText("E2E 駐車場代")).toBeVisible();
+  await expect(page.getByText("返済先")).toBeVisible();
+  await expect(page.getByLabel("精算を完了する")).not.toBeChecked();
+  await page.getByLabel("精算を完了する").click();
+  await expect(page.getByText("精算が完了しました")).toBeVisible();
+  await page.screenshot({
+    path: "verification-artifacts/invoice-detail-completed.png",
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "請求一覧へ戻る" }).click();
   await page.screenshot({
     path: "verification-artifacts/invoices-list-all.png",
     fullPage: true,

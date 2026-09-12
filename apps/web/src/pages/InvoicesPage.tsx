@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { ApiRequestError, getGroupClaims, type ClaimListItem } from "../api";
 import { Heading, Screen } from "../components/layout";
 import { Badge, Card, Icon } from "../components/ui";
@@ -100,9 +101,10 @@ export function InvoicesPage() {
       ) : (
         <Card>
           {filteredClaims.map((claim) => (
-            <div
+            <Link
               className="flex min-h-[88px] items-center gap-3 border-b border-black px-3.5 py-3 last:border-b-0"
               key={claim.id}
+              to={`/invoices/${claim.id}`}
             >
               <span className="grid size-10 shrink-0 place-items-center bg-neutral-100 text-black">
                 <Icon name={claim.status === "settled" ? "check" : "wallet"} />
@@ -124,7 +126,7 @@ export function InvoicesPage() {
                 <strong>¥{BigInt(claim.amount).toLocaleString("ja-JP")}</strong>
                 <Badge>{statusLabels[claim.status]}</Badge>
               </div>
-            </div>
+            </Link>
           ))}
         </Card>
       )}
