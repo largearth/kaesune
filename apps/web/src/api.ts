@@ -60,6 +60,23 @@ export type CreateWithdrawalInput = {
   note?: string | null;
 };
 
+export type AllocationInput = {
+  memberId: string;
+  amount: string;
+};
+
+export type Claim = {
+  id: string;
+  groupId: string;
+  debtorMemberId: string;
+  walletId: string;
+  amount: string;
+  status: "unsettled" | "settled";
+  settledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ClaimListItem = {
   id: string;
   groupId: string;
@@ -131,6 +148,27 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${apiOrigin}${path}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const responseBody = (await response
+      .json()
+      .catch(() => null)) as ErrorResponse | null;
+    throw new ApiRequestError(
+      response.status,
+      responseBody?.message ?? "データの更新に失敗しました。",
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 async function del(path: string): Promise<void> {
   const response = await fetch(`${apiOrigin}${path}`, {
     method: "DELETE",
@@ -190,6 +228,27 @@ export function createGroupWithdrawal(
 
 export function deleteGroupWithdrawal(groupId: string, withdrawalId: string) {
   return del(`/api/groups/${groupId}/withdrawals/${withdrawalId}`);
+}
+
+export function replaceGroupWithdrawalAllocations(
+  groupId: string,
+  withdrawalId: string,
+  allocations: AllocationInput[],
+) {
+  return put<Withdrawal>(
+    `/api/groups/${groupId}/withdrawals/${withdrawalId}/allocations`,
+    { allocations },
+  );
+}
+
+export function createGroupWithdrawalClaims(
+  groupId: string,
+  withdrawalId: string,
+) {
+  return post<{ claims: Claim[] }>(
+    `/api/groups/${groupId}/withdrawals/${withdrawalId}/claims`,
+    {},
+  );
 }
 
 export async function getGroupClaims(groupId: string) {

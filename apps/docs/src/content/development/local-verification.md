@@ -44,6 +44,7 @@ order: 3
 - `pnpm verify:agent-control-payment-create` は、Agent Control daemon と独立した CLI process を通して出金を 1 件作成する。保存後の `/records` snapshot に用途と金額があることを検証し、`artifacts/agent/screenshots/` に full-page screenshot を保存する
 - `pnpm verify:agent-control-phase2` は、Agent Controlのdoctor、出金作成、wait-settle、snapshot、console、network-summary、screenshotを一連のCLI操作として検証する
 - `pnpm verify:invoices-list` は、検証専用の未精算・精算済み請求と関連データを投入し、実 API から請求対象メンバー・用途・返済先財布・金額・状態が表示されることと、状態フィルタを確認する。`verification-artifacts/invoices-list-all.png` と `verification-artifacts/invoices-list-settled.png` を保存する
+- `pnpm verify:claim-create` は、検証専用の未配分出金を請求発行画面から操作し、配分保存と請求作成後に請求一覧へ遷移して、対象者・用途・返済先・金額・未精算状態を確認する。`verification-artifacts/claim-create-before.png` と `verification-artifacts/claim-create-after.png` を保存する
 - `pnpm verify:records-delete` は、検証専用 fixture を投入して実画面の出金削除を確認し、`verification-artifacts/records-delete-after.png` を保存する
 - `pnpm verify:wallet-delete` は、検証専用 fixture を投入して未参照財布の削除と参照中財布の削除拒否を実画面で確認し、`verification-artifacts/wallet-delete-after.png` を保存する
 - テスト運用の詳細は [テスト運用](/development/test-operations) を参照する
