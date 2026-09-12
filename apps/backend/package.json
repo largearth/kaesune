@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "db:seed": "tsx src/db/seed.ts",
+    "verify:seed-claim-create": "tsx src/db/verify-claim-create.ts",
     "verify:seed-payment-create": "tsx src/db/verify-payment-create.ts",
     "verify:seed-records-delete": "tsx src/db/verify-records-delete.ts",
     "verify:seed-wallet-delete": "tsx src/db/verify-wallet-delete.ts",

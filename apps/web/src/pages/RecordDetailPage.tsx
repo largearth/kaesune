@@ -193,14 +193,12 @@ export function RecordDetailPage() {
             />
             <DetailRow label="メモ" value={withdrawal.note || "—"} />
           </dl>
-          <button
-            className="mt-8 h-12 w-full bg-black text-base font-bold text-white"
-            disabled
-            title="請求発行機能は準備中です"
-            type="button"
+          <Link
+            className="mt-8 grid h-12 w-full place-items-center bg-black text-base font-bold text-white"
+            to={`/records/${withdrawal.id}/claims/new`}
           >
             請求を発行する
-          </button>
+          </Link>
         </article>
       )}
       <BottomNav active="records" />

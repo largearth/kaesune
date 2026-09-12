@@ -9,6 +9,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify:install-browser": "playwright install chromium",
+    "verify:claim-create": "pnpm --filter backend verify:seed-claim-create && playwright test verification/claim-create.spec.ts",
     "verify:records-delete": "pnpm --filter backend verify:seed-records-delete && playwright test verification/records-delete.spec.ts",
     "verify:payment-create": "pnpm --filter backend verify:seed-payment-create && playwright test verification/payment-create.spec.ts",
     "verify:wallet-delete": "pnpm --filter backend verify:seed-wallet-delete && playwright test verification/wallet-delete.spec.ts",
