@@ -60,6 +60,25 @@ export type CreateWithdrawalInput = {
   note?: string | null;
 };
 
+export type ClaimListItem = {
+  id: string;
+  groupId: string;
+  debtorMemberId: string;
+  debtorMemberName: string;
+  walletId: string;
+  walletName: string;
+  amount: string;
+  status: "unsettled" | "settled";
+  settledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: {
+    withdrawalId: string;
+    purpose: string;
+    amount: string;
+  }[];
+};
+
 type ErrorResponse = {
   message?: string;
 };
@@ -171,4 +190,11 @@ export function createGroupWithdrawal(
 
 export function deleteGroupWithdrawal(groupId: string, withdrawalId: string) {
   return del(`/api/groups/${groupId}/withdrawals/${withdrawalId}`);
+}
+
+export async function getGroupClaims(groupId: string) {
+  const response = await get<{ claims: ClaimListItem[] }>(
+    `/api/groups/${groupId}/claims`,
+  );
+  return response.claims;
 }
