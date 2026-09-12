@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiRequestError,
+  createGroupWithdrawalClaims,
   getGroupMembers,
   getGroupWithdrawals,
+  replaceGroupWithdrawalAllocations,
   type GroupMember,
   type Withdrawal,
 } from "../api";
@@ -19,12 +21,15 @@ type AllocationView = {
 
 export function AllocationPage() {
   const { withdrawalId } = useParams();
+  const navigate = useNavigate();
   const { currentGroup, errorMessage, isLoading, refresh, unauthenticate } =
     useGroupContext();
   const [withdrawal, setWithdrawal] = useState<Withdrawal | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [dataError, setDataError] = useState<string | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [claimCreateError, setClaimCreateError] = useState<string | null>(null);
+  const [isCreatingClaims, setIsCreatingClaims] = useState(false);
   const wallets = useWalletStore((state) => state.wallets);
   const walletStatus = useWalletStore((state) => state.walletStatus);
   const walletErrorMessage = useWalletStore(
@@ -89,6 +94,35 @@ export function AllocationPage() {
     Boolean(currentGroup) &&
     (walletStatus === "idle" || walletStatus === "loading");
   const loadError = dataError ?? walletErrorMessage;
+
+  const createClaims = async () => {
+    if (!currentGroup || !withdrawalId || isCreatingClaims) return;
+
+    setIsCreatingClaims(true);
+    setClaimCreateError(null);
+    try {
+      await replaceGroupWithdrawalAllocations(
+        currentGroup.id,
+        withdrawalId,
+        allocations.map(({ member, amount }) => ({
+          memberId: member.id,
+          amount: amount.toString(),
+        })),
+      );
+      await createGroupWithdrawalClaims(currentGroup.id, withdrawalId);
+      navigate("/invoices");
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        unauthenticate();
+        return;
+      }
+      setClaimCreateError(
+        error instanceof Error ? error.message : "請求を作成できませんでした。",
+      );
+    } finally {
+      setIsCreatingClaims(false);
+    }
+  };
 
   return (
     <Screen className="pb-0">
@@ -234,14 +268,19 @@ export function AllocationPage() {
             )}
           </Card>
 
+          {claimCreateError && (
+            <p className="mt-5 text-sm text-red-600" role="alert">
+              {claimCreateError}
+            </p>
+          )}
           <button
             aria-describedby="claim-issue-note"
             className="mt-5 h-14 w-full bg-black text-base font-bold text-white"
-            disabled
-            title="静的画面のため、請求はまだ発行されません"
+            disabled={isCreatingClaims || claimTargets.length === 0}
+            onClick={() => void createClaims()}
             type="button"
           >
-            請求を発行する
+            {isCreatingClaims ? "請求を発行中…" : "請求を発行する"}
           </button>
           <p
             className="mt-4 flex items-start gap-2 text-xs leading-6 text-neutral-600"
@@ -254,7 +293,7 @@ export function AllocationPage() {
               i
             </span>
             <span>
-              発行すると対象メンバーへの請求として記録されます。今回は画面確認用のため、請求はまだ作成されません。
+              発行すると、表示中の負担配分を保存して対象メンバーへの請求として記録します。
             </span>
           </p>
         </article>
