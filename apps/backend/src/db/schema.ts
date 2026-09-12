@@ -211,7 +211,7 @@ export const allocations = pgTable(
       table.withdrawalId,
       table.memberId,
     ),
-    check("allocations_amount_check", sql`${table.amount} > 0`),
+    check("allocations_amount_check", sql`${table.amount} >= 0`),
     index("allocations_withdrawal_id_index").on(table.withdrawalId),
   ],
 );

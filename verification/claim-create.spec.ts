@@ -30,6 +30,29 @@ test("請求発行画面で請求を作成し、請求一覧へ遷移する", as
   await expect(
     page.getByRole("button", { name: "請求を発行する" }),
   ).toBeEnabled();
+  await page.getByRole("button", { name: "＝ 均等にする" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Verification userの負担額" }),
+  ).toHaveValue("500");
+  await page.getByRole("button", { name: "E2E 請求作成対象が全額" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Verification userの負担額" }),
+  ).toHaveValue("0");
+  await expect(
+    page.getByRole("textbox", { name: "E2E 請求作成対象の負担額" }),
+  ).toHaveValue("1000");
+  await page
+    .getByRole("textbox", { name: "E2E 請求作成対象の負担額" })
+    .fill("900");
+  await expect(
+    page.getByRole("button", { name: "請求を発行する" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("textbox", { name: "Verification userの負担額" })
+    .fill("100");
+  await expect(
+    page.getByRole("button", { name: "請求を発行する" }),
+  ).toBeEnabled();
   await page.screenshot({
     path: "verification-artifacts/claim-create-before.png",
     fullPage: true,
@@ -59,7 +82,8 @@ test("請求発行画面で請求を作成し、請求一覧へ遷移する", as
   await expect(
     page.getByText("返済先: E2E 請求作成用共有財布").first(),
   ).toBeVisible();
-  await expect(page.getByText("¥500").first()).toBeVisible();
+  await expect(page.getByText("¥100").first()).toBeVisible();
+  await expect(page.getByText("¥900").first()).toBeVisible();
   await expect(page.getByText("未精算").first()).toBeVisible();
   await page.screenshot({
     path: "verification-artifacts/claim-create-after.png",

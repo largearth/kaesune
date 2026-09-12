@@ -15,6 +15,13 @@
       "when": 1786890903251,
       "tag": "0001_cooing_kingpin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789212622711,
+      "tag": "0002_fixed_namor",
+      "breakpoints": true
     }
   ]
 }
