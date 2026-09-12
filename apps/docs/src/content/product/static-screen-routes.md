@@ -17,6 +17,7 @@ order: 4
 | `/records/:withdrawalId/claims/new` | 請求発行               | 負担配分の保存、請求の発行、請求一覧への遷移   |
 | `/payments/new/allocation`          | 負担を決定する         | 記録済み出金を確認して行う後続操作             |
 | `/invoices`                         | 請求一覧               | 決定済みの負担をもとに扱う請求・精算状況の確認 |
+| `/invoices/:claimId`                | 請求詳細               | 請求内容の確認、画面上での精算完了表示         |
 | `/mypage`                           | マイページ             | 財布管理、グループ                             |
 | `/wallets`                          | 財布管理               | 下部ナビゲーション                             |
 | `/group`                            | グループ               | 下部ナビゲーション                             |
