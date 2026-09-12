@@ -22,11 +22,14 @@ describe("API documentation and authentication boundary", () => {
     const document = (await response.json()) as {
       openapi: string;
       paths: Record<string, unknown>;
+      components?: { schemas?: Record<string, unknown> };
     };
     expect(document.openapi).toBe("3.0.3");
     expect(document.paths).toHaveProperty("/me");
     expect(document.paths).toHaveProperty("/groups/{groupId}/wallets");
     expect(document.paths).toHaveProperty("/groups/{groupId}/withdrawals");
+    expect(document.paths).toHaveProperty("/groups/{groupId}/claims");
+    expect(document.components?.schemas).toHaveProperty("ClaimListItem");
   });
 
   it("serves Swagger UI and keeps business resources protected by the session", async () => {
@@ -38,5 +41,18 @@ describe("API documentation and authentication boundary", () => {
     expect(me.status).toBe(401);
     expect(me.headers.get("cache-control")).toBeNull();
     await expect(me.json()).resolves.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
+  it("keeps the claim list protected by the session", async () => {
+    const response = await app.request(
+      "http://localhost/api/groups/de086a07-0c9c-4a2a-bf75-029c7d0df01d/claims",
+      {},
+      env,
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
   });
 });
