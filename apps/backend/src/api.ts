@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 
 import { createAuth, type AuthBindings } from "./auth";
 import type { Database } from "./db/client";
@@ -1010,7 +1010,7 @@ api.openapi(
       body: {
         content: {
           "application/json": {
-            schema: z.object({ status: z.literal("settled") }),
+            schema: z.object({ status: z.enum(["unsettled", "settled"]) }),
           },
         },
       },
@@ -1018,7 +1018,7 @@ api.openapi(
     responses: {
       200: {
         content: { "application/json": { schema: claimSchema } },
-        description: "Settled",
+        description: "Updated",
       },
       ...errorResponses,
     },
@@ -1033,53 +1033,67 @@ api.openapi(
       .where(and(eq(claims.id, claimId), eq(claims.groupId, groupId)));
     if (!claim)
       throw new ApiError(404, "RESOURCE_NOT_FOUND", "請求が見つかりません。");
-    if (claim.status === "settled")
+    const { status } = c.req.valid("json");
+    if (claim.status === status)
       return c.json(noStore(c, serializeClaim(claim)));
-    const [item] = await db
+    const items = await db
       .select({ withdrawalId: allocations.withdrawalId })
       .from(claimItems)
       .innerJoin(allocations, eq(allocations.id, claimItems.allocationId))
       .where(eq(claimItems.claimId, claimId));
-    if (!item)
+    const withdrawalIds = [...new Set(items.map((item) => item.withdrawalId))];
+    if (withdrawalIds.length === 0)
       throw new ApiError(
         409,
         "CLAIM_ITEM_MISSING",
         "請求の内訳が見つかりません。",
       );
-    const unsettled = await db
-      .select({ id: claims.id })
-      .from(claims)
-      .innerJoin(claimItems, eq(claimItems.claimId, claims.id))
-      .innerJoin(allocations, eq(allocations.id, claimItems.allocationId))
-      .where(
-        and(
-          eq(allocations.withdrawalId, item.withdrawalId),
-          eq(claims.status, "unsettled"),
-        ),
-      );
     const now = new Date();
-    const settleClaim = db
+    const updateClaim = db
       .update(claims)
-      .set({ status: "settled", settledAt: now, updatedAt: now })
+      .set({
+        status,
+        settledAt: status === "settled" ? now : null,
+        updatedAt: now,
+      })
       .where(eq(claims.id, claimId));
     const recordActivity = db.insert(activities).values({
       id: crypto.randomUUID(),
       groupId,
       actorMemberId: actor.id,
-      type: "claim_settled",
+      type: status === "settled" ? "claim_settled" : "claim_unsettled",
       subjectId: claimId,
       metadata: {},
     });
-    if (unsettled.length === 1)
-      await db.batch([
-        settleClaim,
-        recordActivity,
+    const withdrawalUpdates = await Promise.all(
+      withdrawalIds.map(async (withdrawalId) => {
+        if (status === "unsettled") return { withdrawalId, status: "claimed" };
+        const [unsettledClaim] = await db
+          .select({ id: claims.id })
+          .from(claims)
+          .innerJoin(claimItems, eq(claimItems.claimId, claims.id))
+          .innerJoin(allocations, eq(allocations.id, claimItems.allocationId))
+          .where(
+            and(
+              eq(allocations.withdrawalId, withdrawalId),
+              eq(claims.status, "unsettled"),
+              ne(claims.id, claimId),
+            ),
+          )
+          .limit(1);
+        return { withdrawalId, status: unsettledClaim ? "claimed" : "settled" };
+      }),
+    );
+    await db.batch([
+      updateClaim,
+      recordActivity,
+      ...withdrawalUpdates.map(({ withdrawalId, status: withdrawalStatus }) =>
         db
           .update(withdrawals)
-          .set({ status: "settled", updatedAt: now })
-          .where(eq(withdrawals.id, item.withdrawalId)),
-      ]);
-    else await db.batch([settleClaim, recordActivity]);
+          .set({ status: withdrawalStatus, updatedAt: now })
+          .where(eq(withdrawals.id, withdrawalId)),
+      ),
+    ]);
     const [updated] = await db
       .select()
       .from(claims)
@@ -1087,6 +1101,83 @@ api.openapi(
     if (!updated)
       throw new ApiError(409, "SETTLEMENT_FAILED", "請求を精算できません。");
     return c.json(noStore(c, serializeClaim(updated)));
+  },
+);
+
+api.openapi(
+  createRoute({
+    method: "delete",
+    path: "/groups/{groupId}/claims/{claimId}",
+    request: { params: z.object({ groupId: uuid, claimId: uuid }) },
+    responses: { 204: { description: "Deleted" }, ...errorResponses },
+  }),
+  async (c) => {
+    const { groupId, claimId } = c.req.valid("param");
+    const db = c.get("db");
+    const actor = await requireMember(db, groupId, c.req.raw, c.env);
+    const [claim] = await db
+      .select({ id: claims.id })
+      .from(claims)
+      .where(and(eq(claims.id, claimId), eq(claims.groupId, groupId)));
+    if (!claim)
+      throw new ApiError(404, "RESOURCE_NOT_FOUND", "請求が見つかりません。");
+    const items = await db
+      .select({ withdrawalId: allocations.withdrawalId })
+      .from(claimItems)
+      .innerJoin(allocations, eq(allocations.id, claimItems.allocationId))
+      .where(eq(claimItems.claimId, claimId));
+    const withdrawalIds = [...new Set(items.map((item) => item.withdrawalId))];
+    if (withdrawalIds.length === 0)
+      throw new ApiError(
+        409,
+        "CLAIM_ITEM_MISSING",
+        "請求の内訳が見つかりません。",
+      );
+    const withdrawalUpdates = await Promise.all(
+      withdrawalIds.map(async (withdrawalId) => {
+        const remainingClaims = await db
+          .select({ status: claims.status })
+          .from(claims)
+          .innerJoin(claimItems, eq(claimItems.claimId, claims.id))
+          .innerJoin(allocations, eq(allocations.id, claimItems.allocationId))
+          .where(
+            and(
+              eq(allocations.withdrawalId, withdrawalId),
+              ne(claims.id, claimId),
+            ),
+          );
+        return {
+          withdrawalId,
+          status:
+            remainingClaims.length === 0
+              ? "allocated"
+              : remainingClaims.some((item) => item.status === "unsettled")
+                ? "claimed"
+                : "settled",
+        };
+      }),
+    );
+    const now = new Date();
+    await db.batch([
+      db.delete(claimItems).where(eq(claimItems.claimId, claimId)),
+      db.delete(claims).where(eq(claims.id, claimId)),
+      db.insert(activities).values({
+        id: crypto.randomUUID(),
+        groupId,
+        actorMemberId: actor.id,
+        type: "claim_deleted",
+        subjectId: claimId,
+        metadata: {},
+      }),
+      ...withdrawalUpdates.map(({ withdrawalId, status }) =>
+        db
+          .update(withdrawals)
+          .set({ status, updatedAt: now })
+          .where(eq(withdrawals.id, withdrawalId)),
+      ),
+    ]);
+    c.header("Cache-Control", "no-store");
+    return c.body(null, 204);
   },
 );
 
