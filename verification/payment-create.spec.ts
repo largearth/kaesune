@@ -26,8 +26,7 @@ test("認証済みの状態から出金を作成できる", async ({ page }) => 
     {
       data: {
         email: process.env.VERIFY_USER_EMAIL ?? "verification@example.test",
-        password:
-          process.env.VERIFY_USER_PASSWORD ?? "verify-records-delete-password",
+        password: "verify-payment-create-password",
         callbackURL: `${webOrigin}/home`,
       },
     },
@@ -60,10 +59,9 @@ test("認証済みの状態から出金を作成できる", async ({ page }) => 
   await page.getByRole("button", { name: "出金を記録する" }).click();
 
   await page.waitForURL("**/records");
-  await expect(page.getByRole("heading", { name: "Record" })).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /E2E 出金作成.*¥1,000/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "出金記録" })).toBeVisible();
+  await expect(page.getByText("E2E 出金作成", { exact: true })).toBeVisible();
+  await expect(page.getByText("¥1,000", { exact: true }).first()).toBeVisible();
   await page.screenshot({
     path: "verification-artifacts/payment-create-after.png",
     fullPage: true,
