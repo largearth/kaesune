@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ApiRequestError, getGroupClaims, type ClaimListItem } from "../api";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ApiRequestError,
+  deleteGroupClaim,
+  getGroupClaims,
+  type ClaimListItem,
+  updateGroupClaimStatus,
+} from "../api";
 import { BottomNav } from "../components/layout";
 import { Badge, Card, Icon } from "../components/ui";
 import { useGroupContext } from "../use-group-context";
 
 export function InvoiceDetailPage() {
   const { claimId } = useParams();
+  const navigate = useNavigate();
   const { currentGroup, errorMessage, isLoading, refresh, unauthenticate } =
     useGroupContext();
   const [claim, setClaim] = useState<ClaimListItem | null>(null);
   const [claimsError, setClaimsError] = useState<string | null>(null);
   const [areClaimsLoading, setAreClaimsLoading] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const refreshClaim = useCallback(async () => {
     if (!currentGroup || !claimId) return;
@@ -40,7 +49,57 @@ export function InvoiceDetailPage() {
     void Promise.resolve().then(refreshClaim);
   }, [refreshClaim]);
 
-  const isSettled = claim?.status === "settled" || isCompleted;
+  const updateStatus = async (status: "unsettled" | "settled") => {
+    if (!currentGroup || !claim) return;
+
+    setIsUpdatingStatus(true);
+    setActionError(null);
+    try {
+      await updateGroupClaimStatus(currentGroup.id, claim.id, status);
+      await refreshClaim();
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        unauthenticate();
+        return;
+      }
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "請求状態を更新できませんでした。",
+      );
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const deleteClaim = async () => {
+    if (!currentGroup || !claim) return;
+    if (
+      !window.confirm(
+        `「${claim.debtorMemberName}さんへの請求」を削除しますか？`,
+      )
+    )
+      return;
+
+    setIsDeleting(true);
+    setActionError(null);
+    try {
+      await deleteGroupClaim(currentGroup.id, claim.id);
+      navigate("/invoices", { replace: true });
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        unauthenticate();
+        return;
+      }
+      setActionError(
+        error instanceof Error ? error.message : "請求を削除できませんでした。",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const isSettled = claim?.status === "settled";
 
   return (
     <main className="mx-auto min-h-svh w-full max-w-2xl bg-white px-6 pt-6 pb-28 text-black">
@@ -123,35 +182,61 @@ export function InvoiceDetailPage() {
             </h2>
             <Card className="p-4">
               {isSettled ? (
-                <div className="flex items-center gap-3" role="status">
-                  <span className="grid size-10 place-items-center rounded-full bg-black text-white">
-                    <Icon name="check" />
-                  </span>
-                  <div>
-                    <p className="font-bold">精算が完了しました</p>
-                    <p className="text-xs text-neutral-600">
-                      この請求は精算済みです。
-                    </p>
+                <div>
+                  <div className="flex items-center gap-3" role="status">
+                    <span className="grid size-10 place-items-center rounded-full bg-black text-white">
+                      <Icon name="check" />
+                    </span>
+                    <div>
+                      <p className="font-bold">精算が完了しました</p>
+                      <p className="text-xs text-neutral-600">
+                        この請求は精算済みです。
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    className="mt-4 text-sm font-bold underline disabled:text-neutral-400"
+                    disabled={isUpdatingStatus || isDeleting}
+                    onClick={() => void updateStatus("unsettled")}
+                    type="button"
+                  >
+                    {isUpdatingStatus ? "取消中…" : "精算完了を取り消す"}
+                  </button>
                 </div>
               ) : (
                 <label className="flex cursor-pointer items-center gap-3">
                   <input
-                    checked={isCompleted}
+                    checked={false}
                     className="size-5 accent-black"
-                    onChange={(event) => setIsCompleted(event.target.checked)}
+                    disabled={isUpdatingStatus || isDeleting}
+                    onChange={(event) => {
+                      if (event.target.checked) void updateStatus("settled");
+                    }}
                     type="checkbox"
                   />
                   <span>
                     <span className="block font-bold">精算を完了する</span>
                     <span className="block text-xs text-neutral-600">
-                      チェックすると、この画面では精算済みとして表示されます。
+                      チェックすると、この請求を精算済みにします。
                     </span>
                   </span>
                 </label>
               )}
             </Card>
+            {actionError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {actionError}
+              </p>
+            )}
           </section>
+          <button
+            className="mt-8 w-full border border-red-600 py-3 text-sm font-bold text-red-600 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-400"
+            disabled={isUpdatingStatus || isDeleting}
+            onClick={() => void deleteClaim()}
+            type="button"
+          >
+            {isDeleting ? "削除中…" : "請求を削除する"}
+          </button>
         </article>
       )}
       <BottomNav active="invoices" />
