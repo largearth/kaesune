@@ -169,6 +169,27 @@ async function put<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${apiOrigin}${path}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const responseBody = (await response
+      .json()
+      .catch(() => null)) as ErrorResponse | null;
+    throw new ApiRequestError(
+      response.status,
+      responseBody?.message ?? "データの更新に失敗しました。",
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 async function del(path: string): Promise<void> {
   const response = await fetch(`${apiOrigin}${path}`, {
     method: "DELETE",
@@ -256,4 +277,16 @@ export async function getGroupClaims(groupId: string) {
     `/api/groups/${groupId}/claims`,
   );
   return response.claims;
+}
+
+export function updateGroupClaimStatus(
+  groupId: string,
+  claimId: string,
+  status: Claim["status"],
+) {
+  return patch<Claim>(`/api/groups/${groupId}/claims/${claimId}`, { status });
+}
+
+export function deleteGroupClaim(groupId: string, claimId: string) {
+  return del(`/api/groups/${groupId}/claims/${claimId}`);
 }

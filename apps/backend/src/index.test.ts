@@ -29,6 +29,7 @@ describe("API documentation and authentication boundary", () => {
     expect(document.paths).toHaveProperty("/groups/{groupId}/wallets");
     expect(document.paths).toHaveProperty("/groups/{groupId}/withdrawals");
     expect(document.paths).toHaveProperty("/groups/{groupId}/claims");
+    expect(document.paths).toHaveProperty("/groups/{groupId}/claims/{claimId}");
     expect(document.components?.schemas).toHaveProperty("ClaimListItem");
   });
 
