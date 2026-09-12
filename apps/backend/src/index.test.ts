@@ -30,7 +30,7 @@ describe("API documentation and authentication boundary", () => {
     expect(document.paths).toHaveProperty("/groups/{groupId}/withdrawals");
     expect(document.paths).toHaveProperty("/groups/{groupId}/claims");
     expect(document.paths).toHaveProperty("/groups/{groupId}/claims/{claimId}");
-    expect(document.components?.schemas).toHaveProperty("ClaimListItem");
+    expect(document.components?.schemas).toHaveProperty("Claim");
   });
 
   it("serves Swagger UI and keeps business resources protected by the session", async () => {
