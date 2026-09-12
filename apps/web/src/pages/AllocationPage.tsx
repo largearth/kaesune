@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiRequestError,
@@ -14,7 +14,12 @@ import { Avatar, Badge, Card, Icon } from "../components/ui";
 import { useWalletStore } from "../stores/use-wallet-store";
 import { useGroupContext } from "../use-group-context";
 
-type AllocationView = { member: GroupMember; amount: bigint };
+type AllocationView = { member: GroupMember; amount: string };
+type AllocationOverride = {
+  allocations: AllocationView[];
+  selectedPreset: string | null;
+  withdrawalId: string;
+};
 
 export function AllocationPage() {
   const { withdrawalId } = useParams();
@@ -27,6 +32,8 @@ export function AllocationPage() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [claimCreateError, setClaimCreateError] = useState<string | null>(null);
   const [isCreatingClaims, setIsCreatingClaims] = useState(false);
+  const [allocationOverride, setAllocationOverride] =
+    useState<AllocationOverride | null>(null);
   const wallets = useWalletStore((state) => state.wallets);
   const walletStatus = useWalletStore((state) => state.walletStatus);
   const walletErrorMessage = useWalletStore(
@@ -71,28 +78,45 @@ export function AllocationPage() {
   const wallet = withdrawal
     ? (wallets.find((item) => item.id === withdrawal.walletId) ?? null)
     : null;
-  const allocations = useMemo(
-    () => (withdrawal ? buildAllocations(withdrawal, members) : []),
-    [members, withdrawal],
-  );
+  const currentAllocationOverride =
+    allocationOverride?.withdrawalId === withdrawal?.id
+      ? allocationOverride
+      : null;
+  const allocations =
+    currentAllocationOverride?.allocations ??
+    (withdrawal ? buildAllocations(withdrawal, members) : []);
+  const selectedPreset =
+    currentAllocationOverride?.selectedPreset ??
+    (currentAllocationOverride
+      ? null
+      : withdrawal?.status === "unallocated"
+        ? "equal"
+        : null);
   const withdrawalAmount = withdrawal ? BigInt(withdrawal.amount) : 0n;
-  const allocationTotal = allocations.reduce(
-    (total, allocation) => total + allocation.amount,
-    0n,
+  const hasValidAllocationAmounts = allocations.every(
+    ({ amount }) => parseAllocationAmount(amount) !== null,
   );
+  const allocationTotal = allocations.reduce((total, allocation) => {
+    return total + (parseAllocationAmount(allocation.amount) ?? 0n);
+  }, 0n);
   const remainingAmount = withdrawalAmount - allocationTotal;
   const claimTargets = allocations.filter(
     ({ member, amount }) =>
-      amount > 0n &&
+      (parseAllocationAmount(amount) ?? 0n) > 0n &&
       (wallet?.ownerType === "shared" || member.id !== wallet?.ownerMemberId),
   );
+  const canCreateClaims =
+    hasValidAllocationAmounts &&
+    remainingAmount === 0n &&
+    claimTargets.length > 0;
   const isWalletLoading =
     Boolean(currentGroup) &&
     (walletStatus === "idle" || walletStatus === "loading");
   const loadError = dataError ?? walletErrorMessage;
 
   const createClaims = async () => {
-    if (!currentGroup || !withdrawalId || isCreatingClaims) return;
+    if (!currentGroup || !withdrawalId || isCreatingClaims || !canCreateClaims)
+      return;
     setIsCreatingClaims(true);
     setClaimCreateError(null);
     try {
@@ -101,7 +125,7 @@ export function AllocationPage() {
         withdrawalId,
         allocations.map(({ member, amount }) => ({
           memberId: member.id,
-          amount: amount.toString(),
+          amount,
         })),
       );
       await createGroupWithdrawalClaims(currentGroup.id, withdrawalId);
@@ -117,6 +141,40 @@ export function AllocationPage() {
     } finally {
       setIsCreatingClaims(false);
     }
+  };
+
+  const applyEqualPreset = () => {
+    if (!withdrawal) return;
+    setAllocationOverride({
+      allocations: buildEqualAllocations(withdrawal, members),
+      selectedPreset: "equal",
+      withdrawalId: withdrawal.id,
+    });
+  };
+
+  const applyFullAmountPreset = (memberId: string) => {
+    if (!withdrawal) return;
+    setAllocationOverride({
+      allocations: members.map((member) => ({
+        member,
+        amount: member.id === memberId ? withdrawalAmount.toString() : "0",
+      })),
+      selectedPreset: memberId,
+      withdrawalId: withdrawal.id,
+    });
+  };
+
+  const updateAllocationAmount = (memberId: string, amount: string) => {
+    if (!withdrawal || !/^\d*$/.test(amount)) return;
+    setAllocationOverride({
+      allocations: allocations.map((allocation) =>
+        allocation.member.id === memberId
+          ? { ...allocation, amount }
+          : allocation,
+      ),
+      selectedPreset: null,
+      withdrawalId: withdrawal.id,
+    });
   };
 
   return (
@@ -180,31 +238,35 @@ export function AllocationPage() {
               <div>
                 <p className="mb-1 text-xs font-bold">負担額の合計</p>
                 <strong className="text-xl">
-                  {formatYen(allocationTotal)}
+                  {hasValidAllocationAmounts
+                    ? formatYen(allocationTotal)
+                    : "入力してください"}
                 </strong>
               </div>
               <p className="text-sm font-bold">
-                残り&nbsp; {formatYen(remainingAmount)}
+                残り&nbsp;{" "}
+                {hasValidAllocationAmounts ? formatYen(remainingAmount) : "—"}
               </p>
             </div>
           </Card>
           <div
-            aria-label="負担配分プリセット（画面確認用）"
+            aria-label="負担配分プリセット"
             className="mb-4 flex gap-2 overflow-x-auto pb-1"
           >
             <button
-              aria-pressed="true"
+              aria-pressed={selectedPreset === "equal"}
               className="h-11 shrink-0 border border-accent bg-white px-4 text-xs font-bold text-accent"
-              disabled
+              onClick={applyEqualPreset}
               type="button"
             >
               ＝ 均等にする
             </button>
             {members.map((member) => (
               <button
+                aria-pressed={selectedPreset === member.id}
                 className="h-11 shrink-0 border border-black bg-white px-4 text-xs font-bold text-black"
-                disabled
                 key={member.id}
+                onClick={() => applyFullAmountPreset(member.id)}
                 type="button"
               >
                 {member.name}が全額
@@ -226,10 +288,21 @@ export function AllocationPage() {
                     </small>
                   )}
                 </div>
-                <div className="flex min-w-32 items-center justify-between border border-black px-4 py-3 text-sm">
+                <label className="flex min-w-32 items-center gap-2 border border-black px-4 py-3 text-sm">
                   <span>¥</span>
-                  <b>{amount.toLocaleString("ja-JP")}</b>
-                </div>
+                  <input
+                    aria-label={`${member.name}の負担額`}
+                    className="min-w-0 flex-1 bg-transparent text-right font-bold outline-none"
+                    inputMode="numeric"
+                    min="0"
+                    onChange={(event) =>
+                      updateAllocationAmount(member.id, event.target.value)
+                    }
+                    pattern="[0-9]*"
+                    type="text"
+                    value={amount}
+                  />
+                </label>
               </div>
             ))}
           </Card>
@@ -242,7 +315,8 @@ export function AllocationPage() {
                     <Avatar name={member.name} />
                     <div className="min-w-0 flex-1">
                       <b className="block text-sm">
-                        {member.name}に {formatYen(amount)} を請求
+                        {member.name}に{" "}
+                        {formatYen(parseAllocationAmount(amount)!)} を請求
                       </b>
                       <small className="block truncate text-xs text-neutral-600">
                         {wallet.name}への返済
@@ -265,7 +339,7 @@ export function AllocationPage() {
           <button
             aria-describedby="claim-issue-note"
             className="mt-5 h-14 w-full bg-black text-base font-bold text-white"
-            disabled={isCreatingClaims || claimTargets.length === 0}
+            disabled={isCreatingClaims || !canCreateClaims}
             onClick={() => void createClaims()}
             type="button"
           >
@@ -299,23 +373,34 @@ function buildAllocations(
     const amountByMemberId = new Map(
       withdrawal.allocations.map((allocation) => [
         allocation.memberId,
-        BigInt(allocation.amount),
+        allocation.amount,
       ]),
     );
     return members.map((member) => ({
       member,
-      amount: amountByMemberId.get(member.id) ?? 0n,
+      amount: amountByMemberId.get(member.id) ?? "0",
     }));
   }
   if (members.length === 0) return [];
+  return buildEqualAllocations(withdrawal, members);
+}
+
+function buildEqualAllocations(
+  withdrawal: Withdrawal,
+  members: GroupMember[],
+): AllocationView[] {
   const total = BigInt(withdrawal.amount);
   const memberCount = BigInt(members.length);
   const baseAmount = total / memberCount;
   const remainder = total % memberCount;
   return members.map((member, index) => ({
     member,
-    amount: baseAmount + (BigInt(index) < remainder ? 1n : 0n),
+    amount: (baseAmount + (BigInt(index) < remainder ? 1n : 0n)).toString(),
   }));
+}
+
+function parseAllocationAmount(amount: string) {
+  return /^(0|[1-9][0-9]*)$/.test(amount) ? BigInt(amount) : null;
 }
 
 function formatYen(amount: bigint) {
